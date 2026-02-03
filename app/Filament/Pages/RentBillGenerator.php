@@ -279,7 +279,7 @@ use Filament\Support\Icons\Heroicon;
                     $taxPercent = 0; 
                     $incomeTax = 0; 
                     $balance = 0; 
-                    $advance = 0; 
+                    $advance = $data['rentrent_advance'] ?? 0; 
                     $amountToPay = 0; 
                     $vatPercent = 0; 
                     $vatTotal = 0; 
@@ -290,7 +290,7 @@ use Filament\Support\Icons\Heroicon;
                     'tenant_id' => $tenant->id, 
                     'bill_month' => $month, 
                     'client_name' => $tenant->client_name, 
-                    'rent_items' => json_encode($data['rent_items'] ?? []),
+                    'rent_items' => $single ? ($data['rent_items'] ?? []) : ($tenant->rent_items ?? []),
                     'rent' => $rent, 
                     'parking_qty' => $parkingQty, 
                     'parking_rate' => $parkingRate, 
