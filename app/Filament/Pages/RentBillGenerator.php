@@ -61,8 +61,7 @@ use Filament\Support\Icons\Heroicon;
                     }), 
                            
                 TextInput::make('floor') 
-                    ->disabled() 
-                    ->dehydrated(false) 
+                    ->readOnly()
                     ->hidden(fn () => ! $this->tenantSelected), 
                     
                 Repeater::make('rent_items') 
@@ -89,8 +88,7 @@ use Filament\Support\Icons\Heroicon;
                             ),
 
                         TextInput::make('total')
-                            ->disabled()
-                            ->dehydrated(false),
+                            ->readOnly(),
                     ])
                     ->addable(false)->deletable(false)->reorderable(false)->columns(3)->columnSpanFull()->hidden(fn () => ! $this->tenantSelected),
                 

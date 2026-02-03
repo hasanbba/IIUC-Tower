@@ -94,7 +94,9 @@ class RentBillForm
                         TextInput::make('income_tax')
                             ->readOnly()
                             ->suffix('BDT'),
-                        TextInput::make('balance')->disabled()->suffix('BDT'),
+                        TextInput::make('balance')
+                            ->readOnly()
+                            ->suffix('BDT'),
                         TextInput::make('rent_advance')
                             ->label('Monthly Advance')
                             ->suffix('BDT')
