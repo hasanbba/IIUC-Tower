@@ -37,12 +37,66 @@ use Filament\Support\Icons\Heroicon;
         public function form(Schema $schema): Schema 
         { 
             return $schema ->statePath('data') ->schema([ 
-                DatePicker::make('bill_month')->required(), 
-                Select::make('tenant_id') 
-                    ->options(Tenant::pluck('client_name', 'id')) 
-                    ->searchable() ->live(onBlur: true) 
+                DatePicker::make('bill_month')
+                    ->required()
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                        $tenantId = $get('tenant_id');
+                        if (blank($state) || blank($tenantId)) {
+                            return;
+                        }
+
+                        $month = Carbon::parse($state)->startOfMonth();
+                        $exists = RentBill::where('tenant_id', $tenantId)
+                            ->whereMonth('bill_month', $month->month)
+                            ->whereYear('bill_month', $month->year)
+                            ->exists();
+
+                        if ($exists) {
+                            Notification::make()
+                                ->title('Bill already exists for this tenant and month.')
+                                ->danger()
+                                ->send();
+                        }
+                    }),
+                Select::make('tenant_id')
+                    ->options(function (Get $get) {
+                        $billMonth = $get('bill_month');
+                        if (blank($billMonth)) {
+                            return [];
+                        }
+
+                        $month = Carbon::parse($billMonth)->startOfMonth();
+                        
+
+                        return Tenant::query()
+                            ->whereDate('rent_start_date', '<=', $month)
+                            ->whereDate('expired_date', '>=', $month)
+                            ->pluck('client_name', 'id');
+                    })
+                    ->searchable() ->live(onBlur: true)
                     ->afterStateUpdated(function ($state, callable $set, callable $get) 
                     { 
+                        $billMonth = $get('bill_month');
+                        if (blank($billMonth) || blank($state)) {
+                            $this->tenantSelected = filled($state);
+                            return;
+                        }
+
+                        $month = Carbon::parse($billMonth)->startOfMonth();
+                        $exists = RentBill::where('tenant_id', $state)
+                            ->whereMonth('bill_month', $month->month)
+                            ->whereYear('bill_month', $month->year)
+                            ->exists();
+
+                        if ($exists) {
+                            Notification::make()
+                                ->title('Bill already exists for this tenant and month.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
                         $tenant = Tenant::find($state); 
                         $this->tenantSelected = filled($state);
                          if ($tenant) 
@@ -77,17 +131,20 @@ use Filament\Support\Icons\Heroicon;
                             ->label('Square Feet')
                             ->live(onBlur: true)
                             ->afterStateUpdated(fn (Get $get, Set $set) =>
-                                $set('total', ((float) ($get('sft') ?? 0)) * ((float) ($get('rate') ?? 0)))
+                                // $set('total', ((float) ($get('sft') ?? 0)) * ((float) ($get('rate') ?? 0)))
+                                $set('line_total', ($get('sft') ?? 0) * ($get('rate') ?? 0))
                             ),
                         TextInput::make('rate')
                             ->label('Rate Per SFT')
                             ->live(onBlur: true)
                             ->suffix('BDT') 
                             ->afterStateUpdated(fn (Get $get, Set $set) =>
-                                $set('line_total', ((float) ($get('sft') ?? 0)) * ((float) ($get('rate') ?? 0)))
+                                // $set('line_total', ((float) ($get('sft') ?? 0)) * ((float) ($get('rate') ?? 0)))
+                                $set('line_total', ($get('sft') ?? 0) * ($state ?? 0))
                             ),
 
-                        TextInput::make('total')
+                        TextInput::make('line_total')
+                            ->label('Line Total')
                             ->readOnly(),
                     ])
                     ->addable(false)->deletable(false)->reorderable(false)->columns(3)->columnSpanFull()->hidden(fn () => ! $this->tenantSelected),
@@ -224,6 +281,20 @@ use Filament\Support\Icons\Heroicon;
             if ($single && empty($data['tenant_id'] ?? null)) { $this->addError('data.tenant_id', 'Please select a tenant.'); return; }
  
             $month = Carbon::parse($data['bill_month'])->startOfMonth(); 
+            if ($single) {
+                $exists = RentBill::where('tenant_id', $data['tenant_id'])
+                    ->whereMonth('bill_month', $month->month)
+                    ->whereYear('bill_month', $month->year)
+                    ->exists();
+
+                if ($exists) {
+                    Notification::make()
+                        ->title('Bill already exists for this tenant and month.')
+                        ->danger()
+                        ->send();
+                    return;
+                }
+            }
             $tenants = $single 
             ? Tenant::whereKey($data['tenant_id'])->get() 
             : Tenant::query()->get(); 
@@ -303,7 +374,7 @@ use Filament\Support\Icons\Heroicon;
                     'vat_percent' => $vatPercent, 
                     'vat_total' => $vatTotal, 
                     'grand_total' => $grandTotal, 
-                    'status' => 'ready', 
+                    'status' => $single ? 'ready' : 'notready', 
                 ]); 
                 
                 $created++; 
