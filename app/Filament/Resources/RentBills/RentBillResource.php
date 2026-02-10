@@ -10,6 +10,7 @@ use App\Filament\Resources\RentBills\Schemas\RentBillForm;
 use App\Filament\Resources\RentBills\Tables\RentBillsTable;
 use App\Models\RentBill;
 use BackedEnum;
+use UnitEnum;
 use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -18,10 +19,10 @@ use Filament\Tables\Table;
 class RentBillResource extends Resource
 {
     protected static ?string $model = RentBill::class;
-
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
     protected static ?string $recordTitleAttribute = 'RentBill';
+    protected static string | UnitEnum | null $navigationGroup = 'Tenants Management';
+    protected static ?int $navigationSort = 2;
 
     public static function form(Schema $schema): Schema
     {
